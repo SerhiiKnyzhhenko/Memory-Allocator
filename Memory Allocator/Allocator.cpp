@@ -26,7 +26,6 @@ void* myAlloc::malloc(size_t size) {
     }
 
     return allocate_new_block(size);
-
 }
 
 BlockHeader* find_free_block(size_t size) {
@@ -43,18 +42,28 @@ BlockHeader* find_free_block(size_t size) {
     return NULL;
 }
 
-void split_block(BlockHeader* block, size_t size) {
+void split_block(BlockHeader* block, size_t requested_size) {
+    size_t total_neaded = requested_size + sizeof(BlockHeader);
+    size_t remaining_size = block->size - total_neaded;
 
+    if (remaining_size >= MIN_BLOCK_SIZE) {
+        BlockHeader* new_block = (BlockHeader*)((char*)block + total_neaded));
+        new_block->size = remaining_size;
+        new_block->next = block->next;
+        new_block->is_free = true;
+        block->size = total_neaded;
+        block->next = new_block;
+    }   
+}
+
+
+void* allocate_new_block(size_t size) {
+      
 }
 
 size_t align_up(size_t size, size_t alignment) {
     return (size + alignment - 1) & ~(alignment - 1);
 }
-
-void* allocate_new_block(size_t size) {
-  
-}
-
 
 void myAlloc::free(void* ptr) {
 
