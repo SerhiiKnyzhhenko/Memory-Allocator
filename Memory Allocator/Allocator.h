@@ -2,6 +2,7 @@
 #define ALLOCATOR_H
 
 #include <stdio.h>
+#include <Windows.h>
 
 namespace myAlloc {
 
