@@ -99,7 +99,21 @@ size_t align_up(size_t size, size_t alignment) {
 }
 
 void myAlloc::free(void* ptr) {
+    if (!ptr) return;
 
+    BlockHeader* header = (BlockHeader*)ptr - 1;
+    header->is_free = true;
+
+    collapse_block(header);
+}
+
+void collapse_block(BlockHeader* header) {
+
+    if (header->next && header->next->is_free) {
+        header->size += header->next->size;
+        header->next = header->next->next;
+        if (header->next == NULL) tail = header;
+    }
 }
 
 size_t myAlloc::allocated_bytes() {
