@@ -79,7 +79,19 @@ void* allocate_new_block(size_t size) {
 }
 
 void* request_mmemory(size_t size) {
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
 
+    size_t alligned_size = align_up(size, si.dwPageSize);
+
+    LPVOID ptr = VirtualAlloc(
+        NULL,
+        alligned_size,
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_READWRITE
+    );
+
+    return ptr;
 }
 
 size_t align_up(size_t size, size_t alignment) {
