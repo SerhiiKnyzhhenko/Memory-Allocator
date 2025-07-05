@@ -47,7 +47,7 @@ void split_block(BlockHeader* block, size_t requested_size) {
     size_t remaining_size = block->size - total_neaded;
 
     if (remaining_size >= MIN_BLOCK_SIZE) {
-        BlockHeader* new_block = (BlockHeader*)((char*)block + total_neaded));
+        BlockHeader* new_block = (BlockHeader*)((char*)block + total_neaded);
         new_block->size = remaining_size;
         new_block->next = block->next;
         new_block->is_free = true;
@@ -58,7 +58,28 @@ void split_block(BlockHeader* block, size_t requested_size) {
 
 
 void* allocate_new_block(size_t size) {
-      
+    
+    size_t total_size = size + HEADER_SIZE;
+
+    void* mem = request_mmemory(size);
+
+    if (!mem) return NULL;
+
+    BlockHeader* header = (BlockHeader*)mem;
+
+    header->next = NULL;
+    header->size = total_size;
+    header->is_free = true;
+
+    if (!head) head = header;
+    if (tail) tail = header->next;
+    tail = header;
+
+    return (void*)(header + 1);
+}
+
+void* request_mmemory(size_t size) {
+
 }
 
 size_t align_up(size_t size, size_t alignment) {
