@@ -1,12 +1,5 @@
 #include "Allocator.h"
 
-#define HEADER_SIZE sizeof(BlockHeader)
-#define ALIGNMENT 16
-#define MIN_PAYLOAD_SIZE 8
-#define MIN_BLOCK_SIZE (align_up(sizeof(BlockHeader) + MIN_PAYLOAD_SIZE, ALIGNMENT))
-
-static BlockHeader* head = NULL;
-static BlockHeader* tail = NULL;  
 
 typedef struct BlockHeader {
     size_t size;
@@ -14,9 +7,11 @@ typedef struct BlockHeader {
     bool is_free;
 } BlockHeader;
 
+static struct BlockHeader* head = nullptr;
+static struct BlockHeader* tail = nullptr;
 
 void* myAlloc::malloc(size_t size) {
-    if (size == 0) return NULL;
+    if (size == 0) return nullptr;
 
     BlockHeader* block = find_free_block(size);
 
@@ -63,11 +58,11 @@ void* allocate_new_block(size_t size) {
 
     void* mem = request_mmemory(size);
 
-    if (!mem) return NULL;
+    if (!mem) return nullptr;
 
     BlockHeader* header = (BlockHeader*)mem;
 
-    header->next = NULL;
+    header->next = nullptr;
     header->size = total_size;
     header->is_free = true;
 
@@ -85,7 +80,7 @@ void* request_mmemory(size_t size) {
     size_t alligned_size = align_up(size, si.dwPageSize);
 
     LPVOID ptr = VirtualAlloc(
-        NULL,
+        nullptr,
         alligned_size,
         MEM_COMMIT | MEM_RESERVE,
         PAGE_READWRITE
@@ -112,10 +107,12 @@ void collapse_block(BlockHeader* header) {
     if (header->next && header->next->is_free) {
         header->size += header->next->size;
         header->next = header->next->next;
-        if (header->next == NULL) tail = header;
+        if (header->next == nullptr) tail = header;
     }
 }
 
-size_t myAlloc::allocated_bytes() {
-
+size_t myAlloc::allocated_bytes(void* ptr) {
+    if (!ptr) return 0;
+    BlockHeader* header = (BlockHeader*)((char*)ptr - sizeof(BlockHeader));
+    return header->size;
 }

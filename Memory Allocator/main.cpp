@@ -1,14 +1,18 @@
 #include <iostream>
-#include <memory>
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-
-
+#include "Allocator.h"
+#include <assert.h>
+#include "Bump_Allocator.h"
 
 int main() {
 
-    int* ptr = (int*)myAlloc::malloc(1024);
-        
+    Allocator alloc(1024);
+
+    int* x = (int*)alloc.allocate(sizeof(int), 1);
+    double* d = (double*)alloc.allocate(sizeof(double), 1);
+
+    char* ptr_arr = (char*)alloc.allocate(sizeof(char) * 100, 1);
+
+    std::cout << x << ' ' << d << ' ' << (void*)ptr_arr << '\n';
+
+    return 0;
 }
