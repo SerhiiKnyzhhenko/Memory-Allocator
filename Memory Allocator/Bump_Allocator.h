@@ -48,30 +48,30 @@ public:
 
     void* allocate(size_t requested_size) {
     
-        Block* current = m_free_list_head;
-        while (current != nullptr) {
-            if (current->size_ >= requested_size) {
+        Block* current_block = m_free_list_head;
+        while (current_block != nullptr) {
+            if (current_block->size_ >= requested_size) {
                 break;
             }
-            current = current->free_block_pointers.next_free;
+            current_block = current_block->free_block_pointers.next_free;
         }
 
-        if (current == nullptr)
+        if (current_block == nullptr)
             return nullptr;
         
-        if (current->size_ >= requested_size + sizeof(Block)) {
+        if (current_block->size_ >= requested_size + sizeof(Block)) {
             size_t allocated_size = requested_size + sizeof(Block);
-            size_t new_block_size = current->size_ - allocated_size;
+            size_t new_block_size = current_block->size_ - allocated_size;
 
-            Block* new_block = reinterpret_cast<Block*>(reinterpret_cast<uintptr_t>(current) + allocated_size);
+            Block* new_block = reinterpret_cast<Block*>(reinterpret_cast<uintptr_t>(current_block) + allocated_size);
             new_block->size_ = new_block_size;
             new_block->is_free_ = true;
 
-            current->size_ = allocated_size;
-            current->is_free_ = false;
+            current_block->size_ = allocated_size;
+            current_block->is_free_ = false;
 
-            Block* next_block = current->free_block_pointers.next_free;
-            Block* prev_block = current->free_block_pointers.prev_free;
+            Block* next_block = current_block->free_block_pointers.next_free;
+            Block* prev_block = current_block->free_block_pointers.prev_free;
 
             if (prev_block != nullptr) {
                 prev_block->free_block_pointers.next_free = new_block;
@@ -87,11 +87,11 @@ public:
             new_block->free_block_pointers.prev_free = prev_block;
             new_block->free_block_pointers.next_free = next_block;
 
-            return (void*)current->user_data;
+            return (void*)current_block->user_data;
         }
         else {
-            Block* next_block = current->free_block_pointers.next_free;
-            Block* prev_block = current->free_block_pointers.prev_free;
+            Block* next_block = current_block->free_block_pointers.next_free;
+            Block* prev_block = current_block->free_block_pointers.prev_free;
 
             if (prev_block != nullptr) {
                 prev_block->free_block_pointers.next_free = next_block;
@@ -103,9 +103,49 @@ public:
             if (next_block != nullptr)
                 next_block->free_block_pointers.prev_free = prev_block;
 
-            current->is_free_ = false;
-            return (void*)current->user_data;
+            current_block->is_free_ = false;
+            return (void*)current_block->user_data;
         }
+    }
+
+    void free(void* user_data_ptr) {
+        Block* current_block = reinterpret_cast<Block*>(
+            reinterpret_cast<uintptr_t>(user_data_ptr)  - offsetof(Block, user_data)
+        );
+
+        current_block->is_free_ = true;
+
+        Block* right_block = reinterpret_cast<Block*>(
+            reinterpret_cast<uintptr_t>(current_block) + current_block->size_
+        );
+
+        if (reinterpret_cast<uintptr_t>(right_block) < reinterpret_cast<uintptr_t>(m_start) + m_totalSize
+            && right_block->is_free_ == true) {
+
+            Block* next_block = right_block->free_block_pointers.next_free;
+            Block* prev_block = right_block->free_block_pointers.prev_free;
+
+            if (prev_block != nullptr) {
+                prev_block->free_block_pointers.next_free = next_block;
+            }
+            else {
+                m_free_list_head = next_block;
+            }
+
+            if (next_block != nullptr)
+                next_block->free_block_pointers.prev_free = prev_block;
+
+            current_block->size_ += right_block->size_;
+        }
+
+        current_block->free_block_pointers.next_free = m_free_list_head;
+        current_block->free_block_pointers.prev_free = nullptr;
+
+        if(m_free_list_head != nullptr)
+            m_free_list_head->free_block_pointers.prev_free = current_block;
+            
+        m_free_list_head = current_block;
+
     }
 
 private:
