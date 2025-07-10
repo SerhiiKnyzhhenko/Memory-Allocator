@@ -15,10 +15,6 @@
 class Allocator {
 public:
     Allocator(size_t size) {
-        // 1. Запроси 'size' байт памяти у ОС.
-        //    Используй mmap для Linux/macOS или VirtualAlloc для Windows.
-        //    Сохрани указатель на начало в m_start.
-        //    Инициализируй m_current с тем же адресом.
 
         size_t alignment = 16;
         m_totalSize = (size + alignment - 1) & ~(alignment - 1);
@@ -26,7 +22,6 @@ public:
         #ifdef _WIN32
         m_start = VirtualAlloc(NULL, m_totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         #else
-        // Аналог для Linux/macOS
         m_start = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
         #endif
 
@@ -42,8 +37,7 @@ public:
     }
 
     ~Allocator() {
-        // 2. Освободи большой кусок памяти, который мы получили от ОС.
-        //    Используй munmap для Linux/macOS или VirtualFree для Windows.
+
         #ifdef _WIN32
         VirtualFree(m_start, 0, MEM_RELEASE);
         #else
