@@ -70,6 +70,11 @@ public:
             current_block->size_ = allocated_size;
             current_block->is_free_ = false;
 
+            size_t* current_block_footer = reinterpret_cast<size_t*>(
+                reinterpret_cast<uintptr_t>(current_block) + current_block->size_ - sizeof(size_t)
+                );
+            *current_block_footer = current_block->size_;
+
             Block* next_block = current_block->free_block_pointers.next_free;
             Block* prev_block = current_block->free_block_pointers.prev_free;
 
@@ -86,6 +91,12 @@ public:
 
             new_block->free_block_pointers.prev_free = prev_block;
             new_block->free_block_pointers.next_free = next_block;
+
+            size_t* new_block_footer = reinterpret_cast<size_t*>(
+                reinterpret_cast<uintptr_t>(new_block) + new_block->size_ - sizeof(size_t)
+            );
+            *new_block_footer = new_block->size_;
+
 
             return (void*)current_block->user_data;
         }
@@ -115,6 +126,31 @@ public:
 
         current_block->is_free_ = true;
 
+        //// left_block
+        size_t* left_block_foooter = reinterpret_cast<size_t*>(
+            reinterpret_cast<uintptr_t>(current_block) - sizeof(size_t)
+        );
+
+        Block* left_block = reinterpret_cast<Block*>(
+            reinterpret_cast<uintptr_t>(current_block) - *left_block_foooter
+        );
+
+        if(reinterpret_cast<uintptr_t>(left_block) > reinterpret_cast<uintptr_t>(m_start)
+            && left_block->is_free_ == true) {
+
+            left_block->size_ += current_block->size_;
+
+            size_t* new_block_footer = reinterpret_cast<size_t*>(
+                reinterpret_cast<uintptr_t>(left_block) + left_block->size_ - sizeof(size_t)
+            );
+
+            *new_block_footer = left_block->size_;
+
+            current_block = left_block;
+        }
+        //// left_block
+
+        //// right_block
         Block* right_block = reinterpret_cast<Block*>(
             reinterpret_cast<uintptr_t>(current_block) + current_block->size_
         );
@@ -136,7 +172,13 @@ public:
                 next_block->free_block_pointers.prev_free = prev_block;
 
             current_block->size_ += right_block->size_;
+
+            size_t* new_block_footer = reinterpret_cast<size_t*>(
+                reinterpret_cast<uintptr_t>(current_block) + current_block->size_ - sizeof(size_t)
+            );
+            *new_block_footer = current_block->size_;
         }
+        //// right_block
 
         current_block->free_block_pointers.next_free = m_free_list_head;
         current_block->free_block_pointers.prev_free = nullptr;
