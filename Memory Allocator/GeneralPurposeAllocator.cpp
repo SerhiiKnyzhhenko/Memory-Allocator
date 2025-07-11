@@ -32,11 +32,11 @@ GeneralPurposeAllocator::~GeneralPurposeAllocator() {
 
 }
 
-void* GeneralPurposeAllocator::allocate(size_t requested_size) {
+void* GeneralPurposeAllocator::allocate(size_t required_size) {
 
     Block* current_block = m_free_list_head;
     while (current_block != nullptr) {
-        if (current_block->size_ >= requested_size) {
+        if (current_block->size_ >= required_size) {
             break;
         }
         current_block = current_block->free_block_pointers.next_free;
@@ -45,44 +45,14 @@ void* GeneralPurposeAllocator::allocate(size_t requested_size) {
     if (current_block == nullptr)
         return nullptr;
 
-    if (current_block->size_ >= requested_size + sizeof(Block)) {
-        size_t allocated_size = requested_size + sizeof(Block);
-        size_t new_block_size = current_block->size_ - allocated_size;
+    if (current_block->size_ >= required_size + sizeof(Block)) {
 
+        split_block(current_block, required_size);
+
+        size_t allocated_size = required_size + sizeof(Block);
         Block* new_block = reinterpret_cast<Block*>(reinterpret_cast<uintptr_t>(current_block) + allocated_size);
-        new_block->size_ = new_block_size;
-        new_block->is_free_ = true;
 
-        current_block->size_ = allocated_size;
-        current_block->is_free_ = false;
-
-        size_t* current_block_footer = reinterpret_cast<size_t*>(
-            reinterpret_cast<uintptr_t>(current_block) + current_block->size_ - sizeof(size_t)
-            );
-        *current_block_footer = current_block->size_;
-
-        Block* next_block = current_block->free_block_pointers.next_free;
-        Block* prev_block = current_block->free_block_pointers.prev_free;
-
-        if (prev_block != nullptr) {
-            prev_block->free_block_pointers.next_free = new_block;
-        }
-        else {
-            m_free_list_head = new_block;
-        }
-
-        if (next_block != nullptr)
-            next_block->free_block_pointers.prev_free = new_block;
-
-
-        new_block->free_block_pointers.prev_free = prev_block;
-        new_block->free_block_pointers.next_free = next_block;
-
-        size_t* new_block_footer = reinterpret_cast<size_t*>(
-            reinterpret_cast<uintptr_t>(new_block) + new_block->size_ - sizeof(size_t)
-            );
-        *new_block_footer = new_block->size_;
-
+        update_freelist_after_allocation(current_block, new_block);
 
         return (void*)current_block->user_data;
     }
@@ -103,9 +73,11 @@ void* GeneralPurposeAllocator::allocate(size_t requested_size) {
         current_block->is_free_ = false;
         return (void*)current_block->user_data;
     }
+
 }
 
 void GeneralPurposeAllocator::deallocate(void* user_data_ptr) {
+
     Block* current_block = reinterpret_cast<Block*>(
         reinterpret_cast<uintptr_t>(user_data_ptr) - offsetof(Block, user_data)
         );
@@ -188,4 +160,50 @@ void GeneralPurposeAllocator::deallocate(void* user_data_ptr) {
 
         m_free_list_head = current_block;
     }
+
+}
+
+void GeneralPurposeAllocator::split_block(Block* block_to_split, size_t required_size) {
+
+    size_t allocated_size = required_size + sizeof(Block);
+    size_t new_block_size = block_to_split->size_ - allocated_size;
+
+    Block* new_block = reinterpret_cast<Block*>(reinterpret_cast<uintptr_t>(block_to_split) + allocated_size);
+    new_block->size_ = new_block_size;
+    new_block->is_free_ = true;
+
+    block_to_split->size_ = allocated_size;
+    block_to_split->is_free_ = false;
+
+    size_t* current_block_footer = reinterpret_cast<size_t*>(
+        reinterpret_cast<uintptr_t>(block_to_split) + block_to_split->size_ - sizeof(size_t)
+        );
+    *current_block_footer = block_to_split->size_;
+
+    size_t* new_block_footer = reinterpret_cast<size_t*>(
+        reinterpret_cast<uintptr_t>(new_block) + new_block->size_ - sizeof(size_t)
+        );
+    *new_block_footer = new_block->size_;
+
+}
+
+void GeneralPurposeAllocator::update_freelist_after_allocation(Block* old_block, Block* new_block) {
+
+    Block* next_block = old_block->free_block_pointers.next_free;
+    Block* prev_block = old_block->free_block_pointers.prev_free;
+
+    if (prev_block != nullptr) {
+        prev_block->free_block_pointers.next_free = new_block;
+    }
+    else {
+        m_free_list_head = new_block;
+    }
+
+    if (next_block != nullptr)
+        next_block->free_block_pointers.prev_free = new_block;
+
+
+    new_block->free_block_pointers.prev_free = prev_block;
+    new_block->free_block_pointers.next_free = next_block;
+
 }
