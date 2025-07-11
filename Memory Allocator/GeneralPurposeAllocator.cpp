@@ -49,6 +49,7 @@ void* GeneralPurposeAllocator::allocate(size_t required_size) {
     }
     else {
         unlink_from_freelist(current_block);
+        current_block->is_free_ = false;
         return (void*)current_block->user_data;
     }
 
@@ -69,17 +70,12 @@ void GeneralPurposeAllocator::deallocate(void* user_data_ptr) {
 
     current_block->is_free_ = true;
 
-    
+    bool merging_with_the_left_bloc = false;
+
+    current_block = coalesce(current_block, &merging_with_the_left_bloc);
 
     if (!merging_with_the_left_bloc) {
-
-        current_block->free_block_pointers.next_free = m_free_list_head;
-        current_block->free_block_pointers.prev_free = nullptr;
-
-        if (m_free_list_head != nullptr)
-            m_free_list_head->free_block_pointers.prev_free = current_block;
-
-        m_free_list_head = current_block;
+        add_to_freelist(current_block);
     }
 
 }
@@ -147,46 +143,49 @@ void GeneralPurposeAllocator::unlink_from_freelist(Block* block_to_remove) {
     }
 
     if (next_block != nullptr)
-        next_block->free_block_pointers.prev_free = prev_block;
-
-    block_to_remove->is_free_ = false;
-    
+        next_block->free_block_pointers.prev_free = prev_block;   
 }
 
-Block* GeneralPurposeAllocator::coalesce(Block* block) {
+Block* GeneralPurposeAllocator::coalesce(Block* current_block, bool* merging_with_the_left_block) {
 
-    bool merging_with_the_left_bloc = false;
-
-    //// left_block
     if (reinterpret_cast<uintptr_t>(current_block) > reinterpret_cast<uintptr_t>(m_start)) {
-        size_t* left_block_foooter = reinterpret_cast<size_t*>(
-            reinterpret_cast<uintptr_t>(current_block) - sizeof(size_t)
-            );
-
-        Block* left_block = reinterpret_cast<Block*>(
-            reinterpret_cast<uintptr_t>(current_block) - *left_block_foooter
-            );
-
-        if (reinterpret_cast<uintptr_t>(left_block) >= reinterpret_cast<uintptr_t>(m_start)
-            && left_block->is_free_ == true) {
-
-            left_block->size_ += current_block->size_;
-
-            size_t* new_block_footer = reinterpret_cast<size_t*>(
-                reinterpret_cast<uintptr_t>(left_block) + left_block->size_ - sizeof(size_t)
-                );
-
-            *new_block_footer = left_block->size_;
-
-            current_block = left_block;
-
-            merging_with_the_left_bloc = true;
-        }
-
+        current_block = merge_with_left_block(current_block, merging_with_the_left_block);
     }
-    //// left_block
 
-    //// right_block
+    merge_with_right_block(current_block);
+
+    return current_block;
+
+}
+
+Block* GeneralPurposeAllocator::merge_with_left_block(Block* current_block, bool* merging_with_the_left_bloc) {
+
+    size_t* left_block_foooter = reinterpret_cast<size_t*>(
+        reinterpret_cast<uintptr_t>(current_block) - sizeof(size_t)
+        );
+
+    Block* left_block = reinterpret_cast<Block*>(
+        reinterpret_cast<uintptr_t>(current_block) - *left_block_foooter
+        );
+
+    if (reinterpret_cast<uintptr_t>(left_block) >= reinterpret_cast<uintptr_t>(m_start)
+        && left_block->is_free_ == true) {
+
+        left_block->size_ += current_block->size_;
+
+        update_footer(left_block); 
+        
+        current_block = left_block;
+
+        *merging_with_the_left_bloc = true;
+    }
+
+    return current_block;
+
+}
+
+void GeneralPurposeAllocator::merge_with_right_block(Block* current_block) {
+
     Block* right_block = reinterpret_cast<Block*>(
         reinterpret_cast<uintptr_t>(current_block) + current_block->size_
         );
@@ -194,27 +193,24 @@ Block* GeneralPurposeAllocator::coalesce(Block* block) {
     if (reinterpret_cast<uintptr_t>(right_block) < reinterpret_cast<uintptr_t>(m_start) + m_totalSize
         && right_block->is_free_ == true) {
 
-        Block* next_block = right_block->free_block_pointers.next_free;
-        Block* prev_block = right_block->free_block_pointers.prev_free;
-
-        if (prev_block != nullptr) {
-            prev_block->free_block_pointers.next_free = next_block;
-        }
-        else {
-            m_free_list_head = next_block;
-        }
-
-        if (next_block != nullptr)
-            next_block->free_block_pointers.prev_free = prev_block;
+        unlink_from_freelist(right_block);
 
         current_block->size_ += right_block->size_;
 
-        size_t* new_block_footer = reinterpret_cast<size_t*>(
-            reinterpret_cast<uintptr_t>(current_block) + current_block->size_ - sizeof(size_t)
-            );
-        *new_block_footer = current_block->size_;
+        update_footer(current_block);    
     }
-    //// right_block
+
+}
+
+void GeneralPurposeAllocator::add_to_freelist(Block* block) {
+
+    block->free_block_pointers.next_free = m_free_list_head;
+    block->free_block_pointers.prev_free = nullptr;
+
+    if (m_free_list_head != nullptr)
+        m_free_list_head->free_block_pointers.prev_free = block;
+
+    m_free_list_head = block;
 
 }
 
