@@ -3,16 +3,19 @@
 #include <assert.h>
 #include "Bump_Allocator.h"
 
+
+
 int main() {
 
     Allocator alloc(1024);
 
-    int* x = (int*)alloc.allocate(sizeof(int), 1);
-    double* d = (double*)alloc.allocate(sizeof(double), 1);
+    void* ptr1 = alloc.allocate(150);
+    void* ptr2 = alloc.allocate(250);
+    void* ptr3 = alloc.allocate(350);
 
-    char* ptr_arr = (char*)alloc.allocate(sizeof(char) * 100, 1);
-
-    std::cout << x << ' ' << d << ' ' << (void*)ptr_arr << '\n';
+    alloc.free(ptr1);
+    alloc.free(ptr2);
+    alloc.free(ptr3);
 
     return 0;
 }
