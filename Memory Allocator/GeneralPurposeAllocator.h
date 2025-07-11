@@ -29,11 +29,14 @@ public:
     void deallocate(void* user_data_ptr);
 
 private:
-    Block* find_first_fit(size_t size);
-    void split_block(Block* block_to_split, size_t required_size);
+    Block* find_first_fit(size_t required_size);
+    Block* split_block(Block* block_to_split, size_t required_size);
     void update_freelist_after_allocation(Block* old_block, Block* new_block);
+    void unlink_from_freelist(Block* block_to_remove);
     Block* coalesce(Block* block);
     void add_to_freelist(Block* block);
+    void update_footer(Block* block);
+
 };
 
 #endif // !GENERALPURPOSEALLOCATOR_H
