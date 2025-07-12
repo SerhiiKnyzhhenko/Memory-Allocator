@@ -21,11 +21,9 @@ struct Chunk {
 class PoolAllocator : public IAllocator {
 
 private:
-    size_t m_totalSize_;
     size_t chunk_size_;
     size_t num_chunks_;
 	void* m_start_ = nullptr;
-	void* m_current_ = nullptr;
 	Chunk* m_free_list_head = nullptr;
 
 public:
