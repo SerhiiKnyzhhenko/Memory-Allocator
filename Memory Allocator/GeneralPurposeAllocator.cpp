@@ -39,7 +39,7 @@ void* GeneralPurposeAllocator::allocate(size_t required_size) {
     if (current_block == nullptr)
         return nullptr;
 
-    if (current_block->size_ >= required_size + sizeof(Block)) {
+    if (current_block->size_ > required_size + sizeof(Block)) {
 
         Block* new_block = split_block(current_block, required_size);
 

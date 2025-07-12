@@ -25,8 +25,8 @@ public:
     GeneralPurposeAllocator(size_t size);
     ~GeneralPurposeAllocator();
 
-    void* allocate(size_t requested_size);
-    void deallocate(void* user_data_ptr);
+    void* allocate(size_t requested_size) override;
+    void deallocate(void* user_data_ptr) override;
 
 private:
     Block* find_first_fit(size_t required_size);
